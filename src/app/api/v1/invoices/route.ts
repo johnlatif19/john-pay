@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db, COLLECTIONS } from '@/lib/firebase';
-import { requireApiAuth } from '@/lib/auth';
+import { requireApiAuth, verifyAdminFromCookie } from '@/lib/auth';
 import { createInvoice, getPaymentMethodConfig } from '@/lib/invoices';
-import { verifyAdminFromCookie } from '@/lib/auth';
 import { createInvoiceSchema, PAYMENT_METHODS } from '@/lib/types';
 import { errorResponse, successResponse, parsePagination } from '@/lib/utils';
 import type { Invoice, PaymentMethod } from '@/lib/types';
@@ -21,6 +20,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const parsed = createInvoiceSchema.safeParse(body);
   if (!parsed.success) {
+    console.error("ZOD VALIDATION ERROR:", parsed.error);
     return errorResponse('validation_failed', 400, parsed.error.issues[0]?.message);
   }
 
