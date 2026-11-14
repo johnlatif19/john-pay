@@ -16,6 +16,7 @@ interface InvoiceData {
   expiresAt: number;
   reviewDeadlineAt?: number;
   proofRequestedAt?: number;
+  confirmedAt?: number;
   receivingWallet: string;
   displayName: string;
   instructions: string;
@@ -224,7 +225,7 @@ export default function CheckoutPage() {
           {isPending && confirmed && invoice.reviewDeadlineAt && invoice.proofRequestedAt && (
             <div className="p-6 space-y-4">
               <ReviewTimer
-                confirmedAt={invoice.reviewDeadlineAt - (invoice.reviewDeadlineAt - invoice.proofRequestedAt) * 2}
+                confirmedAt={invoice.confirmedAt || Date.now()}
                 reviewDeadlineAt={invoice.reviewDeadlineAt}
                 proofRequestedAt={invoice.proofRequestedAt}
                 serverNow={invoice.serverNow}
