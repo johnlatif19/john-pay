@@ -15,13 +15,14 @@ export default function InvoiceDetailsPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [method, setMethod] = useState<PaymentMethodConfig | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
         const [invRes, txRes] = await Promise.all([
-          fetch(`/api/invoices/${id}`),
-          fetch(`/api/transactions?invoiceId=${id}`),
+          fetch(`/api/v1/invoices/${id}`),
+          fetch(`/api/v1/transactions?invoiceId=${id}`),
         ]);
         const invData = await invRes.json();
         const txData = await txRes.json();
@@ -47,6 +48,25 @@ export default function InvoiceDetailsPage() {
     load();
   }, [id]);
 
+  async function handleManualPaid() {
+    if (!confirm('هل أنت متأكد من تأكيد الدفع يدوياً؟ سيتم تحويل الفاتورة إلى "مدفوعة".')) return;
+    
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/v1/invoices/${id}?action=manual_paid`, { method: 'POST' });
+      if (res.ok) {
+        alert('تم تأكيد الدفع بنجاح!');
+        window.location.reload();
+      } else {
+        alert('حدث خطأ أثناء التحديث');
+      }
+    } catch {
+      alert('حدث خطأ في الاتصال');
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -70,7 +90,7 @@ export default function InvoiceDetailsPage() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button onClick={() => router.back()} className="text-muted hover:text-white transition-colors">
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -80,6 +100,17 @@ export default function InvoiceDetailsPage() {
           <h1 className="text-xl font-bold text-white">تفاصيل الفاتورة</h1>
           <code className="text-xs text-muted font-mono" dir="ltr">{invoice.id}</code>
         </div>
+        
+        {invoice.status !== 'paid' && (
+          <button
+            onClick={handleManualPaid}
+            disabled={updating}
+            className="px-4 py-2 bg-success hover:bg-success/80 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {updating ? 'جاري التأكيد...' : 'تأكيد الدفع يدوياً'}
+          </button>
+        )}
+
         <InvoiceStatusBadge status={invoice.status} />
       </div>
 
@@ -106,10 +137,6 @@ export default function InvoiceDetailsPage() {
             <div className="flex justify-between">
               <dt className="text-muted">تاريخ الإنشاء</dt>
               <dd className="text-white text-xs">{formatDate(invoice.createdAt)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted">ينتهي في</dt>
-              <dd className="text-white text-xs">{formatDate(invoice.expiresAt)}</dd>
             </div>
           </dl>
         </Card>
