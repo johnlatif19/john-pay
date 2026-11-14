@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, Spinner, Badge, CopyButton } from '@/components/ui';
+import { Card, Spinner, Badge } from '@/components/ui';
 import { InvoiceStatusBadge, formatDate, formatCurrency } from '@/components/admin';
 import type { Invoice, Transaction, PaymentMethodConfig } from '@/lib/types';
 
@@ -28,10 +28,12 @@ export default function InvoiceDetailsPage() {
         const txData = await txRes.json();
 
         if (invData.success) {
-          setInvoice(invData.data.invoice);
+          const invoiceData = invData.data.invoice || invData.data;
+          setInvoice(invoiceData);
+          
           if (invData.data.receivingWallet) {
             setMethod({
-              id: invData.data.invoice.paymentMethod,
+              id: invoiceData.paymentMethod,
               enabled: true,
               displayName: invData.data.displayName || '',
               receivingNumber: invData.data.receivingWallet,
@@ -39,8 +41,13 @@ export default function InvoiceDetailsPage() {
               updatedAt: 0,
             });
           }
+        } else {
+          console.error("API Error:", invData.error);
         }
+        
         if (txData.success) setTransactions(txData.data.items);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
