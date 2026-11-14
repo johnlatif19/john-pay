@@ -13,41 +13,57 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ): Promise<Response> {
-  const invoice = await getInvoice(params.id);
+  try {
+    const invoice = await getInvoice(params.id);
 
-  if (!invoice) {
-    return errorResponse('invoice_not_found', 404);
+    if (!invoice) {
+      return errorResponse('invoice_not_found', 404);
+    }
+
+    const cookieHeader = request.headers.get('cookie');
+    const authResult = await verifyAdminFromCookie(cookieHeader);
+    
+    let receivingWallet = '';
+    let displayName = '';
+    let instructions = '';
+
+    const methodDoc = await db.collection(COLLECTIONS.paymentMethods).doc(invoice.paymentMethod).get();
+    if (methodDoc.exists) {
+      const methodData = methodDoc.data();
+      receivingWallet = methodData?.receivingNumber || '';
+      displayName = methodData?.displayName || '';
+      instructions = methodData?.instructions || '';
+    }
+
+    const publicData = {
+      id: invoice.id,
+      orderId: invoice.orderId,
+      description: invoice.description,
+      amount: invoice.amount,
+      currency: invoice.currency,
+      paymentMethod: invoice.paymentMethod,
+      status: invoice.status,
+      expiresAt: invoice.expiresAt,
+      reviewDeadlineAt: invoice.reviewDeadlineAt,
+      proofRequestedAt: invoice.proofRequestedAt,
+      receivingWallet,
+      displayName,
+      instructions,
+      serverNow: Date.now(),
+    };
+
+    if (authResult.ok) {
+      return successResponse({
+        ...publicData,
+        invoice,
+      });
+    }
+
+    return successResponse(publicData);
+  } catch (error) {
+    console.error('Get invoice error:', error);
+    return errorResponse('internal_error', 500);
   }
-
-  const cookieHeader = request.headers.get('cookie');
-  const authResult = await verifyAdminFromCookie(cookieHeader);
-  const methodConfig = await getPaymentMethodConfig(invoice.paymentMethod);
-
-  const publicData = {
-    id: invoice.id,
-    orderId: invoice.orderId,
-    description: invoice.description,
-    amount: invoice.amount,
-    currency: invoice.currency,
-    paymentMethod: invoice.paymentMethod,
-    status: invoice.status,
-    expiresAt: invoice.expiresAt,
-    reviewDeadlineAt: invoice.reviewDeadlineAt,
-    proofRequestedAt: invoice.proofRequestedAt,
-    receivingWallet: methodConfig?.receivingNumber || null,
-    displayName: methodConfig?.displayName || null,
-    instructions: methodConfig?.instructions || null,
-    serverNow: now(),
-  };
-
-  if (authResult.ok) {
-    return successResponse({
-      ...publicData,
-      invoice,
-    });
-  }
-
-  return successResponse(publicData);
 }
 
 export async function POST(
