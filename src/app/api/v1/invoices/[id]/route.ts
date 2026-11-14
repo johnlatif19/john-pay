@@ -46,6 +46,7 @@ export async function GET(
       expiresAt: invoice.expiresAt,
       reviewDeadlineAt: invoice.reviewDeadlineAt,
       proofRequestedAt: invoice.proofRequestedAt,
+      confirmedAt: invoice.confirmedAt,
       receivingWallet,
       displayName,
       instructions,
