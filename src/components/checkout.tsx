@@ -120,11 +120,12 @@ export function ScreenshotUpload({
       const uploadData = await uploadRes.json();
 
       if (!uploadRes.ok) {
-        setError('فشل رفع الصورة');
+        console.error('Cloudinary upload error:', uploadData);
+        setError(uploadData.error?.message || 'فشل رفع الصورة');
         return;
       }
 
-      const confirmRes = await fetch(`/api/invoices/${invoiceId}?action=proof`, {
+      const confirmRes = await fetch(`/api/v1/invoices/${invoiceId}?action=proof`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,14 +135,17 @@ export function ScreenshotUpload({
         }),
       });
 
-      if (!confirmRes.ok) {
-        setError('فشل تأكيد الصورة');
+      const confirmData = await confirmRes.json();
+
+      if (!confirmRes.ok || !confirmData.success) {
+        setError(confirmData.error || 'فشل تأكيد الصورة');
         return;
       }
 
       setSuccess(true);
       onUploaded();
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError('حدث خطأ في الرفع');
     } finally {
       setUploading(false);
