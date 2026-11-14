@@ -82,6 +82,10 @@ export async function POST(
     return handleProof(request, params.id);
   }
 
+  if (action === 'manual_paid') {
+    return handleManualPaid(request, params.id);
+  }
+
   return errorResponse('invalid_action', 400);
 }
 
@@ -160,5 +164,47 @@ async function handleProof(request: NextRequest, invoiceId: string): Promise<Res
   } catch (error) {
     console.error('PROOF UPLOAD ERROR:', error);
     return errorResponse('proof_failed', 500, error instanceof Error ? error.message : 'unknown');
+  }
+}
+
+async function handleManualPaid(request: NextRequest, invoiceId: string): Promise<Response> {
+  const cookieHeader = request.headers.get('cookie');
+  const authResult = await verifyAdminFromCookie(cookieHeader);
+  
+  if (!authResult.ok) {
+    return errorResponse('unauthorized', 401);
+  }
+
+  try {
+    const invoice = await getInvoice(invoiceId);
+    if (!invoice) return errorResponse('invoice_not_found', 404);
+
+    const ts = now();
+    await db.collection(COLLECTIONS.invoices).doc(invoiceId).update({
+      status: 'paid',
+      paidAt: ts,
+      updatedAt: ts,
+    });
+
+    await db.collection(COLLECTIONS.transactions).add({
+      id: `txn_${ts}`,
+      invoiceId: invoiceId,
+      orderId: invoice.orderId,
+      amount: invoice.amount,
+      currency: 'EGP',
+      paymentMethod: invoice.paymentMethod,
+      receivingWallet: 'manual',
+      senderPhone: 'manual',
+      status: 'verified',
+      verificationSource: 'manual',
+      createdAt: ts,
+      updatedAt: ts,
+      verifiedAt: ts,
+    });
+
+    return successResponse({ ok: true, status: 'paid' });
+  } catch (error) {
+    console.error('Manual paid error:', error);
+    return errorResponse('manual_paid_failed', 500);
   }
 }
