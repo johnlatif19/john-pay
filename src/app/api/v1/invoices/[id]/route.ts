@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db, COLLECTIONS } from '@/lib/firebase';
-import { getInvoice, confirmInvoice, getPaymentMethodConfig } from '@/lib/invoices';
+import { getInvoice, confirmInvoice } from '@/lib/invoices';
 import { verifyAdminFromCookie } from '@/lib/auth';
 import { confirmInvoiceSchema } from '@/lib/types';
 import { errorResponse, successResponse, now } from '@/lib/utils';
