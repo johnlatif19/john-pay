@@ -164,6 +164,7 @@ async function handleTransaction(request: NextRequest): Promise<Response> {
 
   const parsed = verifyTransactionSchema.safeParse(body);
   if (!parsed.success) {
+    console.error("ZOD VALIDATION ERROR (Device Transaction):", parsed.error);
     return errorResponse('validation_failed', 400, parsed.error.issues[0]?.message);
   }
 
