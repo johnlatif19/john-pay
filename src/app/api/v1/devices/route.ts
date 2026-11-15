@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server';
 import { db, COLLECTIONS } from '@/lib/firebase';
-import { hashSha256, verifyDevice, verifyAdminFromCookie, generateApiKeySecret } from '@/lib/auth';
+import { hashSha256, verifyDevice, verifyAdminFromCookie } from '@/lib/auth';
 import { registerDeviceSchema, heartbeatSchema } from '@/lib/types';
-import { errorResponse, successResponse, now, generateDeviceId, getClientIp, getUserAgent } from '@/lib/utils';
+import { errorResponse, successResponse, now, generateDeviceId } from '@/lib/utils';
+import { verifyTransaction } from '@/lib/verification';
+import { verifyTransactionSchema } from '@/lib/types';
 import { randomBytes } from 'crypto';
 import type { Device } from '@/lib/types';
 
@@ -16,6 +18,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (action === 'register') return handleRegister(request);
   if (action === 'heartbeat') return handleHeartbeat(request);
   if (action === 'revoke') return handleRevoke(request);
+  if (action === 'transaction') return handleTransaction(request);
 
   return errorResponse('invalid_action', 400);
 }
@@ -148,4 +151,32 @@ async function handleConfig(request: NextRequest): Promise<Response> {
   const methods = methodsSnapshot.docs.map((d) => d.data());
 
   return successResponse({ device, paymentMethods: methods });
+}
+
+async function handleTransaction(request: NextRequest): Promise<Response> {
+  const authResult = await verifyDevice(request);
+  if (!authResult.ok || !authResult.context) {
+    return errorResponse(authResult.error || 'unauthorized', authResult.status || 401);
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body) return errorResponse('invalid_body', 400);
+
+  const parsed = verifyTransactionSchema.safeParse(body);
+  if (!parsed.success) {
+    return errorResponse('validation_failed', 400, parsed.error.issues[0]?.message);
+  }
+
+  try {
+    const result = await verifyTransaction(parsed.data, authResult.context.actorId);
+    return successResponse({
+      transaction_id: result.transaction.id,
+      status: result.result.status,
+      reason: result.result.reason,
+      invoice_status: result.invoice?.status,
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'verify_failed';
+    return errorResponse(msg, 400);
+  }
 }
